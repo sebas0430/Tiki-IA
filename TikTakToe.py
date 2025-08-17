@@ -199,8 +199,7 @@ def read_state():
 
 def winner_in_state(state):
     """
-    Evalúa un estado (lista 3x3) y devuelve:
-    'X' si gana X, 'O' si gana O, 'Draw' si está lleno sin ganador, o None si sigue en juego.
+    devuelve: 'X' si gana X, 'O' si gana O, 'Draw' si está lleno sin ganador, o None si sigue en juego.
     """
     # Filas
     for i in range(3):
@@ -222,7 +221,6 @@ def winner_in_state(state):
 
 def minimax(state, is_maximizing):
     """
-    Minimax puro sobre el estado dado (no usa la GUI).
     Devuelve 1 si favorece a 'O', -1 si favorece a 'X', 0 en empate.
     """
     result = winner_in_state(state)
@@ -232,8 +230,8 @@ def minimax(state, is_maximizing):
         return -1
     if result == 'Draw':
         return 0
-
-    if is_maximizing:
+     # Si el juego sigue, continuar con minimax
+    if is_maximizing: 
         best = float('-inf')
         for i in range(3):
             for j in range(3):
@@ -256,13 +254,17 @@ def minimax(state, is_maximizing):
 
 def best_move():
     """
-    Calcula y ejecuta la mejor jugada para 'O' en la GUI,
-    llamando a mark_button para que respete tu flujo (ganador/empate/turno).
+    Calcula y ejecuta la mejor jugada para 'O' en el juego actual,
+    llamando a mark_button para que respete tu flujo.
     """
+    # Obtiene el estado actual del tablero
     state = read_state()
+    # Busca la mejor jugada para 'O' usando minimax
     best_score = float('-inf')
+    # inicializa la mejor jugada
     move = None
 
+    # Recorre todas las casillas del tablero
     for i in range(3):
         for j in range(3):
             if state[i][j] == "":
@@ -272,7 +274,8 @@ def best_move():
                 if score > best_score:
                     best_score = score
                     move = (i, j)
-
+                    
+    # Si se encontró una jugada válida
     if move is not None:
         # Hace la jugada en el tablero real
         mark_button(move[0], move[1], 'O')
