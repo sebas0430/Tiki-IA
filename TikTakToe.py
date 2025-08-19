@@ -1,5 +1,7 @@
 from tkinter import *
 
+# ===================== INTERFAZ GRÁFICA =====================
+
 # Crear la ventana principal de la aplicación
 root = Tk()
 root.title("Tic Tac Toe Game")
@@ -50,19 +52,21 @@ buttons = [[None, None, None],
 # Crear los botones del tablero y asignarles la función de marcar
 for i in range(3):
     for j in range(3):
-        buttons[i][j] = Button(board,
-                               text="",
-                               font=("Arial", 24),
-                               width=5,
-                               height=2,
-                               bg="white",
-                               fg="black",
-                               # Al hacer clic, llama a mark_button con la posición y el jugador actual
-                               command=lambda row=i, col=j: mark_button(row, col, player)
-                               )
+        buttons[i][j] = Button(
+            board,
+            text="",
+            font=("Arial", 24),
+            width=5,
+            height=2,
+            bg="white",
+            fg="black",
+            # Al hacer clic, llama a mark_button con la posición y el jugador actual
+            command=lambda row=i, col=j: mark_button(row, col, player)
+        )
         buttons[i][j].grid(row=i+1, column=j, padx=10, pady=10)
 
-# Función para cambiar el turno del jugador
+# ===================== LÓGICA DEL JUEGO =====================
+
 def change_turn():
     """
     Cambia el turno entre los jugadores 'X' y 'O' y actualiza el label de turno.
@@ -76,7 +80,6 @@ def change_turn():
     print(f"Current player: {player}")
     return player
 
-# Función para verificar si hay un ganador en el tablero (GUI actual)
 def check_winner():
     """
     Verifica si algún jugador ha ganado el juego en la GUI.
@@ -104,8 +107,10 @@ def check_winner():
 
     return False
 
-# --- NUEVO: resalta en color la línea ganadora ---
 def highlight_winning_line(color="lightgreen"):
+    """
+    Resalta en color la línea ganadora (fila, columna o diagonal) en el tablero.
+    """
     # Filas
     for i in range(3):
         if buttons[i][0]['text'] == buttons[i][1]['text'] == buttons[i][2]['text'] != "":
@@ -130,12 +135,11 @@ def highlight_winning_line(color="lightgreen"):
         buttons[2][0].config(bg=color)
         return
 
-# Función que se ejecuta al hacer clic en un botón del tablero
 def mark_button(row, col, current):
     """
     Marca la casilla seleccionada con el símbolo del jugador actual,
     verifica si hay un ganador o empate, y cambia el turno.
-    Además, si tras el cambio de turno le toca a la IA (O), realiza su jugada.
+    Si tras el cambio de turno le toca a la IA (O), realiza su jugada.
     """
     # Si ya hay un ganador o empate, no hacer nada
     if winner_label['text'] != "":
@@ -148,7 +152,7 @@ def mark_button(row, col, current):
         # Verificar si hay un ganador
         if check_winner():
             winner_label.config(text=f"¡Ganó {current}!")
-            highlight_winning_line()  # <<< NUEVO: resaltar línea
+            highlight_winning_line()  # Resalta la línea ganadora
             print(f"Player {current} wins!")
             return
 
@@ -163,9 +167,10 @@ def mark_button(row, col, current):
 
         # Si ahora le toca a la IA (O), que juegue
         if winner_label['text'] == "" and player == "O":
-            best_move()
+            #delay para la jugada de la IA
+            root.after(500, lambda:best_move() )
+            
 
-# Función para reiniciar el juego y limpiar el tablero
 def reset_game():
     """
     Reinicia el juego, limpia el tablero y restablece los labels.
@@ -174,22 +179,23 @@ def reset_game():
     player = "X"
     for i in range(3):
         for j in range(3):
-            buttons[i][j].config(text="", bg="white")  # <<< restaura color también
+            buttons[i][j].config(text="", bg="white")  # Restaura color también
     winner_label.config(text="")
     turn_label.config(text=f"Turno: {player}")
     print("Game reset. Player X starts again.")
 
 # Botón para reiniciar el juego
-reset_button = Button(board,
-                      text="Reiniciar Juego",
-                      font=("Arial", 14),
-                      command=reset_game,
-                      bg="red",
-                      fg="black")
+reset_button = Button(
+    board,
+    text="Reiniciar Juego",
+    font=("Arial", 14),
+    command=reset_game,
+    bg="red",
+    fg="black"
+)
 reset_button.grid(row=6, column=0, columnspan=3, pady=20)
 
-#----------------------------------------------------------------
-# parte de IA
+# ===================== INTELIGENCIA ARTIFICIAL =====================
 
 def read_state():
     """
@@ -199,7 +205,12 @@ def read_state():
 
 def winner_in_state(state):
     """
-    devuelve: 'X' si gana X, 'O' si gana O, 'Draw' si está lleno sin ganador, o None si sigue en juego.
+    Evalúa un estado del tablero (lista 3x3) y determina el resultado.
+    Retorna:
+        'X' si gana X,
+        'O' si gana O,
+        'Draw' si el tablero está lleno y no hay ganador,
+        None si el juego sigue en curso.
     """
     # Filas
     for i in range(3):
@@ -219,66 +230,147 @@ def winner_in_state(state):
         return "Draw"
     return None
 
-def minimax(state, is_maximizing):
+def evaluate(state):
     """
-    Devuelve 1 si favorece a 'O', -1 si favorece a 'X', 0 en empate.
+    Heurística para estados no terminales.
+    Devuelve un puntaje: mayor es mejor para 'O', combina posibilidades de O y penaliza las de X.
     """
+    # Pesos para la heurística
+    w1_O = 1   # líneas abiertas para O (sin X)
+    w2_O = 5   # dos O y un vacío (amenaza inmediata de O)
+    w1_X = 1   # líneas abiertas para X (sin O)
+    w2_X = 5   # dos X y un vacío (amenaza inmediata de X)
+    bonus_center = 2 # centro para O le suma 2
+    bonus_corner = 1 # cada esquina para O le suma 1
+
+    lines = []
+    # Filas y columnas
+    for i in range(3):
+        lines.append([state[i][0], state[i][1], state[i][2]])  # fila i
+        lines.append([state[0][i], state[1][i], state[2][i]])  # columna i
+    # Diagonales
+    lines.append([state[0][0], state[1][1], state[2][2]])
+    lines.append([state[0][2], state[1][1], state[2][0]])
+
+    ind1_O = ind2_O = 0
+    ind1_X = ind2_X = 0
+
+    # Contar indicadores en las líneas
+    for line in lines:
+        o = line.count('O')
+        x = line.count('X')
+        e = line.count('')
+        # Indicadores para O
+        if x == 0:
+            ind1_O += 1
+        if o == 2 and e == 1:
+            ind2_O += 1
+        # Indicadores para X
+        if o == 0:
+            ind1_X += 1
+        if x == 2 and e == 1:
+            ind2_X += 1
+
+    score = (w1_O * ind1_O) + (w2_O * ind2_O) - (w1_X * ind1_X) - (w2_X * ind2_X)
+
+    # Bonos posicionales para O
+    if state[1][1] == 'O':
+        score += bonus_center
+    corners = [(0,0), (0,2), (2,0), (2,2)]
+    for i, j in corners:
+        if state[i][j] == 'O':
+            score += bonus_corner
+
+    return score
+
+def minimax(state, is_maximizing, depth, max_depth, alpha=float('-inf'), beta=float('inf')):
+    """
+    Algoritmo Minimax con poda alfa-beta y profundidad limitada.
+    Devuelve un valor numérico: mayor favorece a 'O'.
+    Terminales usan ±M; en corte por profundidad usa evaluate(state).
+    """
+    M = 10**6  # Valor grande para priorizar resultados terminales sobre heurística
+
+    # Verificar si el estado es terminal
     result = winner_in_state(state)
+    # Si hay un ganador o empate, retornar el valor correspondiente
     if result == 'O':
-        return 1
+        return M - depth
+    
     if result == 'X':
-        return -1
+        return -M + depth
+    
     if result == 'Draw':
         return 0
-     # Si el juego sigue, continuar con minimax
-    if is_maximizing: 
+    # Si se alcanza la profundidad máxima, evaluar el estado
+    if depth >= max_depth:
+        return evaluate(state)
+
+    # Si no es un estado terminal, continuar con Minimax
+    if is_maximizing:  # turno de 'O'
+        # Maximizar el puntaje para 'O'
         best = float('-inf')
+        # recorrer todas las casillas del tablero
         for i in range(3):
             for j in range(3):
                 if state[i][j] == "":
                     state[i][j] = 'O'
-                    score = minimax(state, False)
+                    # Llamar recursivamente a minimax para el siguiente turno
+                    score = minimax(state, False, depth+1, max_depth, alpha, beta)
                     state[i][j] = ""
+                    # Actualizar el mejor puntaje encontrado
                     best = max(best, score)
+                    # Actualizar los valores de alfa y beta
+                    alpha = max(alpha, best)
+                    # Poda alfa-beta
+                    if alpha >= beta:  # poda
+                        return best
         return best
-    else:
+    # Si es el turno de 'X', minimizar el puntaje
+    else:  # turno de 'X'
         best = float('inf')
         for i in range(3):
             for j in range(3):
                 if state[i][j] == "":
                     state[i][j] = 'X'
-                    score = minimax(state, True)
+                    score = minimax(state, True, depth+1, max_depth, alpha, beta)
                     state[i][j] = ""
                     best = min(best, score)
+                    beta = min(beta, best)
+                    if alpha >= beta:  # poda
+                        return best
         return best
 
 def best_move():
     """
     Calcula y ejecuta la mejor jugada para 'O' en el juego actual,
-    llamando a mark_button para que respete tu flujo.
+    llamando a mark_button para que respete el flujo del juego.
     """
     # Obtiene el estado actual del tablero
     state = read_state()
-    # Busca la mejor jugada para 'O' usando minimax
+
+    # Profundidad de búsqueda (puedes aumentar para mayor dificultad)
+    max_depth = 4
+
     best_score = float('-inf')
-    # inicializa la mejor jugada
     move = None
 
-    # Recorre todas las casillas del tablero
+    # Recorre todas las casillas del tablero para encontrar la mejor jugada
     for i in range(3):
         for j in range(3):
             if state[i][j] == "":
                 state[i][j] = 'O'
-                score = minimax(state, False)
+                score = minimax(state, False, 1, max_depth)
                 state[i][j] = ""
                 if score > best_score:
                     best_score = score
                     move = (i, j)
-                    
-    # Si se encontró una jugada válida
+
+    # Si se encontró una jugada válida, la realiza en el tablero real
     if move is not None:
-        # Hace la jugada en el tablero real
         mark_button(move[0], move[1], 'O')
+
+# ===================== INICIO DEL JUEGO =====================
 
 # Iniciar el bucle principal de la aplicación
 root.mainloop()
